@@ -14,27 +14,19 @@ app.use(express.json());
 SERVE FRONTEND
 ========================= */
 
-app.use(
-express.static(
-path.join(__dirname,"../frontend")
-)
-);
+app.use(express.static(
+path.join(__dirname,"frontend")
+));
 
 app.get("/",(req,res)=>{
 res.sendFile(
-path.join(
-__dirname,
-"../frontend/index.html"
-)
+path.join(__dirname,"frontend","index.html")
 );
 });
 
 app.get("/details.html",(req,res)=>{
 res.sendFile(
-path.join(
-__dirname,
-"../frontend/details.html"
-)
+path.join(__dirname,"frontend","details.html")
 );
 });
 
