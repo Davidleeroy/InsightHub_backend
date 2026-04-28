@@ -13,17 +13,19 @@ app.use(express.json());
 /* =========================
 SERVE FRONTEND
 ========================= */
+const path = require("path");
 
-app.use(express.static(
-path.join(__dirname,"frontend")
-));
+/* serve frontend files */
+app.use(express.static(path.join(__dirname,"frontend")));
 
+/* homepage */
 app.get("/",(req,res)=>{
 res.sendFile(
 path.join(__dirname,"frontend","index.html")
 );
 });
 
+/* project details page */
 app.get("/details.html",(req,res)=>{
 res.sendFile(
 path.join(__dirname,"frontend","details.html")
