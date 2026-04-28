@@ -1,25 +1,48 @@
 const express = require("express");
 const cors = require("cors");
-const bcrypt = require("bcrypt");
+const bcrypt = require("bcryptjs");
 const path = require("path");
-const pool = require("./db");
+const pool = require("./config/db");
 
 const app = express();
-const PORT = 5000;
-
-
+const PORT = process.env.PORT || 5000;
 
 app.use(cors());
 app.use(express.json());
 
+/* =========================
+SERVE FRONTEND
+========================= */
 
 app.use(
-  express.static(
-    path.join(__dirname,"../frontend")
-  )
+express.static(
+path.join(__dirname,"../frontend")
+)
 );
 
+app.get("/",(req,res)=>{
+res.sendFile(
+path.join(
+__dirname,
+"../frontend/index.html"
+)
+);
+});
 
+app.get("/details.html",(req,res)=>{
+res.sendFile(
+path.join(
+__dirname,
+"../frontend/details.html"
+)
+);
+});
+
+
+
+/* =========================
+AUTH
+========================= */
 
 app.post("/register", async(req,res)=>{
 try{
@@ -29,24 +52,30 @@ const {name,email,password}=req.body;
 const hashedPassword=
 await bcrypt.hash(password,10);
 
-const user=await pool.query(
+const user=
+await pool.query(
 `
 INSERT INTO users
 (name,email,password)
+
 VALUES($1,$2,$3)
+
 RETURNING id,name,email,role
 `,
-[name,email,hashedPassword]
+[
+name,
+email,
+hashedPassword
+]
 );
 
 res.json(user.rows[0]);
 
 }catch(err){
-console.error(err.message);
+console.error(err);
 res.status(500).send("Registration error");
 }
 });
-
 
 
 app.post("/login", async(req,res)=>{
@@ -56,12 +85,15 @@ const {email,password}=req.body;
 
 const user=
 await pool.query(
-"SELECT * FROM users WHERE email=$1",
+`
+SELECT * FROM users
+WHERE email=$1
+`,
 [email]
 );
 
 if(user.rows.length===0){
-return res.status(400).send("User not found");
+return res.send("User not found");
 }
 
 const valid=
@@ -71,23 +103,28 @@ user.rows[0].password
 );
 
 if(!valid){
-return res.status(400).send("Wrong password");
+return res.send("Wrong password");
 }
 
 res.json(user.rows[0]);
 
 }catch(err){
-console.error(err.message);
+console.error(err);
 res.status(500).send("Login error");
 }
 });
 
 
 
-app.post("/projects", async(req,res)=>{
+/* =========================
+SUBMIT PROJECT
+(All new submissions pending)
+========================= */
+
+app.post("/projects",async(req,res)=>{
 try{
 
-const {
+const{
 user_id,
 title,
 description,
@@ -99,11 +136,12 @@ pdf_url,
 video_url
 }=req.body;
 
+
 const result=
 await pool.query(
 `
-INSERT INTO projects
-(
+INSERT INTO projects(
+
 user_id,
 title,
 description,
@@ -112,11 +150,17 @@ supervisor,
 year,
 technology,
 pdf_url,
-video_url
+video_url,
+status
+
 )
 
-VALUES
-($1,$2,$3,$4,$5,$6,$7,$8,$9)
+VALUES(
+
+$1,$2,$3,$4,$5,$6,$7,$8,$9,
+'pending'
+
+)
 
 RETURNING *
 `,
@@ -136,81 +180,18 @@ video_url
 res.json(result.rows[0]);
 
 }catch(err){
-console.error(err.message);
+console.error(err);
 res.status(500).send("Submission error");
 }
 });
 
 
 
+/* =========================
+PUBLIC SEES APPROVED ONLY
+========================= */
 
-app.get("/projects", async(req,res)=>{
-try{
-
-const {
-department,
-year,
-keyword,
-technology
-}=req.query;
-
-let query=
-`
-SELECT
-p.*,
-u.name AS student
-
-FROM projects p
-JOIN users u
-ON p.user_id=u.id
-
-WHERE p.status='approved'
-`;
-
-let values=[];
-
-
-
-if(department){
-values.push(department);
-query+=` AND p.department=$${values.length}`;
-}
-
-if(year){
-values.push(year);
-query+=` AND p.year=$${values.length}`;
-}
-
-if(keyword){
-values.push(`%${keyword}%`);
-query+=`
-AND (
-p.title ILIKE $${values.length}
-OR p.description ILIKE $${values.length}
-)
-`;
-}
-
-if(technology){
-values.push(technology);
-query+=` AND p.technology=$${values.length}`;
-}
-
-const result=
-await pool.query(query,values);
-
-res.json(result.rows);
-
-}catch(err){
-console.error(err.message);
-res.status(500).send("Fetch error");
-}
-});
-
-
-
-
-app.get("/projects/:id", async(req,res)=>{
+app.get("/projects",async(req,res)=>{
 try{
 
 const result=
@@ -218,7 +199,39 @@ await pool.query(
 `
 SELECT
 p.*,
-u.name AS student
+u.name as student
+
+FROM projects p
+JOIN users u
+ON p.user_id=u.id
+
+WHERE status='approved'
+`
+);
+
+res.json(result.rows);
+
+}catch(err){
+console.error(err);
+res.status(500).send("Fetch error");
+}
+});
+
+
+
+/* =========================
+SINGLE PROJECT DETAILS
+========================= */
+
+app.get("/projects/:id",async(req,res)=>{
+try{
+
+const result=
+await pool.query(
+`
+SELECT
+p.*,
+u.name as student
 
 FROM projects p
 JOIN users u
@@ -226,24 +239,28 @@ ON p.user_id=u.id
 
 WHERE p.id=$1
 `,
-[req.params.id]
+[
+req.params.id
+]
 );
 
 res.json(result.rows[0]);
 
 }catch(err){
-console.error(err.message);
+console.error(err);
 res.status(500).send("Project details error");
 }
 });
 
 
 
+/* =========================
+BOOKMARKS
+========================= */
 
-app.post("/bookmark", async(req,res)=>{
-try{
+app.post("/bookmark",async(req,res)=>{
 
-const {
+const{
 user_id,
 project_id
 }=req.body;
@@ -252,24 +269,23 @@ await pool.query(
 `
 INSERT INTO bookmarks
 (user_id,project_id)
+
 VALUES($1,$2)
 `,
-[user_id,project_id]
+[
+user_id,
+project_id
+]
 );
 
 res.send("Bookmarked");
 
-}catch(err){
-console.error(err.message);
-res.status(500).send("Bookmark error");
-}
 });
 
 
 
-
-app.get("/bookmarks/:userId", async(req,res)=>{
-try{
+app.get("/bookmarks/:userId",
+async(req,res)=>{
 
 const result=
 await pool.query(
@@ -282,24 +298,25 @@ ON b.project_id=p.id
 
 WHERE b.user_id=$1
 `,
-[req.params.userId]
+[
+req.params.userId
+]
 );
 
 res.json(result.rows);
 
-}catch(err){
-console.error(err.message);
-res.status(500).send("Bookmarks error");
-}
 });
 
 
 
+/* =========================
+COMMENTS
+========================= */
 
-app.post("/comments", async(req,res)=>{
-try{
+app.post("/comments",
+async(req,res)=>{
 
-const {
+const{
 user_id,
 project_id,
 comment
@@ -315,23 +332,20 @@ VALUES($1,$2,$3)
 
 RETURNING *
 `,
-[user_id,project_id,comment]
+[
+user_id,
+project_id,
+comment
+]
 );
 
 res.json(result.rows[0]);
 
-}catch(err){
-console.error(err.message);
-res.status(500).send("Comment error");
-}
 });
-
-
 
 
 app.get("/comments/:projectId",
 async(req,res)=>{
-try{
 
 const result=
 await pool.query(
@@ -345,27 +359,27 @@ JOIN users u
 ON c.user_id=u.id
 
 WHERE c.project_id=$1
-ORDER BY c.id DESC
+ORDER BY id DESC
 `,
-[req.params.projectId]
+[
+req.params.projectId
+]
 );
 
 res.json(result.rows);
 
-}catch(err){
-console.error(err.message);
-res.status(500).send("Comments error");
-}
 });
 
 
 
+/* =========================
+ACCESS REQUESTS
+========================= */
 
 app.post("/request-access",
 async(req,res)=>{
-try{
 
-const {
+const{
 user_id,
 project_id,
 message
@@ -385,117 +399,32 @@ message
 ]
 );
 
-res.send("Access request sent");
+res.send("Request sent");
 
-}catch(err){
-console.error(err.message);
-res.status(500).send("Request error");
-}
 });
 
 
 
+/* =========================
+ADMIN MODERATION
+========================= */
 
+/* pending submissions */
 
-app.get("/pending",
+app.get("/admin/pending",
 async(req,res)=>{
-try{
 
 const result=
 await pool.query(
 `
-SELECT p.*,u.name as student
+SELECT
+p.*,
+u.name as student
+
 FROM projects p
 JOIN users u
 ON p.user_id=u.id
-WHERE status='pending'
-`
-);
 
-res.json(result.rows);
-
-}catch(err){
-console.error(err.message);
-res.status(500).send("Pending error");
-}
-});
-
-app.post("/projects", async(req,res)=>{
-
-const {
-user_id,
-title,
-description,
-department,
-supervisor,
-year,
-technology,
-pdf_url,
-video_url
-}=req.body;
-
-const result=await pool.query(
-`
-INSERT INTO projects(
-user_id,
-title,
-description,
-department,
-supervisor,
-year,
-technology,
-pdf_url,
-video_url,
-status
-)
-
-VALUES(
-$1,$2,$3,$4,$5,$6,$7,$8,$9,'pending'
-)
-
-RETURNING *
-`,
-[
-user_id,
-title,
-description,
-department,
-supervisor,
-year,
-technology,
-pdf_url,
-video_url
-]
-);
-
-res.json(result.rows[0]);
-
-});
-
-app.get("/projects", async(req,res)=>{
-
-const projects=await pool.query(
-`
-SELECT p.*,u.name AS student
-FROM projects p
-JOIN users u
-ON p.user_id=u.id
-WHERE p.status='approved'
-`
-);
-
-res.json(projects.rows);
-
-});
-
-app.get("/admin/pending", async(req,res)=>{
-
-const result=await pool.query(
-`
-SELECT p.*,u.name as student
-FROM projects p
-JOIN users u
-ON p.user_id=u.id
 WHERE status='pending'
 `
 );
@@ -503,6 +432,9 @@ WHERE status='pending'
 res.json(result.rows);
 
 });
+
+
+/* approve */
 
 app.put("/admin/approve/:id",
 async(req,res)=>{
@@ -513,12 +445,17 @@ UPDATE projects
 SET status='approved'
 WHERE id=$1
 `,
-[req.params.id]
+[
+req.params.id
+]
 );
 
-res.send("Project approved");
+res.send("Approved");
 
 });
+
+
+/* reject */
 
 app.put("/admin/reject/:id",
 async(req,res)=>{
@@ -529,135 +466,22 @@ UPDATE projects
 SET status='rejected'
 WHERE id=$1
 `,
-[req.params.id]
-);
-
-res.send("Project rejected");
-
-});
-
-app.put("/admin/edit/:id",
-async(req,res)=>{
-
-const {
-title,
-description,
-department,
-technology
-}=req.body;
-
-await pool.query(
-`
-UPDATE projects
-SET
-title=$1,
-description=$2,
-department=$3,
-technology=$4
-WHERE id=$5
-`,
 [
-title,
-description,
-department,
-technology,
 req.params.id
 ]
 );
 
-res.send("Project updated");
-
-});
-
-app.delete("/admin/delete/:id",
-async(req,res)=>{
-
-await pool.query(
-`
-DELETE FROM projects
-WHERE id=$1
-`,
-[req.params.id]
-);
-
-res.send("Project deleted");
-
-});
-
-
-
-
-/* APPROVE PROJECT */
-app.put("/approve/:id",
-async(req,res)=>{
-try{
-
-await pool.query(
-`
-UPDATE projects
-SET status='approved'
-WHERE id=$1
-`,
-[req.params.id]
-);
-
-res.send("Approved");
-
-}catch(err){
-console.error(err.message);
-res.status(500).send("Approve error");
-}
-});
-
-
-/* REJECT PROJECT */
-app.put("/reject/:id",
-async(req,res)=>{
-try{
-
-await pool.query(
-`
-UPDATE projects
-SET status='rejected'
-WHERE id=$1
-`,
-[req.params.id]
-);
-
 res.send("Rejected");
 
-}catch(err){
-console.error(err.message);
-res.status(500).send("Reject error");
-}
 });
 
 
-/* DELETE PROJECT */
-app.delete("/delete/:id",
+/* edit */
+
+app.put("/admin/edit/:id",
 async(req,res)=>{
-try{
 
-await pool.query(
-"DELETE FROM projects WHERE id=$1",
-[req.params.id]
-);
-
-res.send("Deleted");
-
-}catch(err){
-console.error(err.message);
-res.status(500).send("Delete error");
-}
-});
-
-
-/* EDIT PROJECT */
-app.put("/projects/:id",
-async(req,res)=>{
-try{
-
-const {
+const{
 title,
 description,
 department,
@@ -667,11 +491,13 @@ technology
 await pool.query(
 `
 UPDATE projects
+
 SET
 title=$1,
 description=$2,
 department=$3,
 technology=$4
+
 WHERE id=$5
 `,
 [
@@ -685,35 +511,34 @@ req.params.id
 
 res.send("Updated");
 
-}catch(err){
-console.error(err.message);
-res.status(500).send("Update error");
-}
 });
 
 
+/* delete */
 
-app.get("/",(req,res)=>{
-res.sendFile(
-path.join(
-__dirname,
-"../frontend/index.html"
-)
+app.delete("/admin/delete/:id",
+async(req,res)=>{
+
+await pool.query(
+`
+DELETE FROM projects
+WHERE id=$1
+`,
+[
+req.params.id
+]
 );
+
+res.send("Deleted");
+
 });
 
 
-/* ==========================
+
+/* =========================
 START SERVER
-========================== */
-app.get("/details.html",(req,res)=>{
-res.sendFile(
-path.join(
-__dirname,
-"../frontend/details.html"
-)
-);
-});
+========================= */
+
 app.listen(PORT,()=>{
 console.log(
 `Server running on port ${PORT}`
