@@ -10,22 +10,20 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-/* =========================
-SERVE FRONTEND
-========================= */
 
 
-/* serve frontend files */
+
+ 
 app.use(express.static(path.join(__dirname,"frontend")));
 
-/* homepage */
+
 app.get("/",(req,res)=>{
 res.sendFile(
 path.join(__dirname,"frontend","index.html")
 );
 });
 
-/* project details page */
+
 app.get("/details.html",(req,res)=>{
 res.sendFile(
 path.join(__dirname,"frontend","details.html")
@@ -34,9 +32,7 @@ path.join(__dirname,"frontend","details.html")
 
 
 
-/* =========================
-AUTH
-========================= */
+
 
 app.post("/register", async(req,res)=>{
 try{
@@ -110,10 +106,6 @@ res.status(500).send("Login error");
 
 
 
-/* =========================
-SUBMIT PROJECT
-(All new submissions pending)
-========================= */
 
 app.post("/projects",async(req,res)=>{
 try{
@@ -181,9 +173,7 @@ res.status(500).send("Submission error");
 
 
 
-/* =========================
-PUBLIC SEES APPROVED ONLY
-========================= */
+
 
 app.get("/projects",async(req,res)=>{
 try{
@@ -213,9 +203,7 @@ res.status(500).send("Fetch error");
 
 
 
-/* =========================
-SINGLE PROJECT DETAILS
-========================= */
+
 
 app.get("/projects/:id",async(req,res)=>{
 try{
@@ -248,9 +236,7 @@ res.status(500).send("Project details error");
 
 
 
-/* =========================
-BOOKMARKS
-========================= */
+
 
 app.post("/bookmark",async(req,res)=>{
 
@@ -303,9 +289,7 @@ res.json(result.rows);
 
 
 
-/* =========================
-COMMENTS
-========================= */
+
 
 app.post("/comments",
 async(req,res)=>{
@@ -366,9 +350,6 @@ res.json(result.rows);
 
 
 
-/* =========================
-ACCESS REQUESTS
-========================= */
 
 app.post("/request-access",
 async(req,res)=>{
@@ -399,11 +380,7 @@ res.send("Request sent");
 
 
 
-/* =========================
-ADMIN MODERATION
-========================= */
 
-/* pending submissions */
 
 app.get("/admin/pending",
 async(req,res)=>{
@@ -428,7 +405,7 @@ res.json(result.rows);
 });
 
 
-/* approve */
+
 
 app.put("/admin/approve/:id",
 async(req,res)=>{
@@ -449,7 +426,7 @@ res.send("Approved");
 });
 
 
-/* reject */
+
 
 app.put("/admin/reject/:id",
 async(req,res)=>{
@@ -470,7 +447,7 @@ res.send("Rejected");
 });
 
 
-/* edit */
+
 
 app.put("/admin/edit/:id",
 async(req,res)=>{
@@ -508,7 +485,6 @@ res.send("Updated");
 });
 
 
-/* delete */
 
 app.delete("/admin/delete/:id",
 async(req,res)=>{
@@ -529,9 +505,7 @@ res.send("Deleted");
 
 
 
-/* =========================
-START SERVER
-========================= */
+
 
 app.listen(PORT,()=>{
 console.log(
