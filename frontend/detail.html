@@ -155,7 +155,7 @@ Post Comment
 
 <script>
 
-/* GET PROJECT ID FROM URL */
+
 const params =
 new URLSearchParams(
 window.location.search
@@ -165,11 +165,11 @@ const projectId =
 params.get("id");
 
 
-/* DEMO USER */
+
 const userId = 1;
 
 
-/* LOAD PROJECT DETAILS */
+
 async function loadProject(){
 
 try{
@@ -291,7 +291,7 @@ Smart attendance system using facial recognition.
 
 
 
-/* BOOKMARK PROJECT */
+
 async function bookmarkProject(){
 
 await fetch(
@@ -319,7 +319,7 @@ alert(
 
 
 
-/* REQUEST ACCESS */
+
 async function requestAccess(){
 
 let message=
@@ -355,7 +355,7 @@ alert(
 
 
 
-/* POST COMMENT */
+
 async function addComment(){
 
 let comment=
@@ -395,7 +395,7 @@ loadComments();
 
 
 
-/* LOAD COMMENTS */
+
 async function loadComments(){
 
 try{
@@ -447,7 +447,7 @@ document.getElementById(
 
 
 
-/* RUN PAGE */
+
 loadProject();
 loadComments();
 
