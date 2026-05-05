@@ -3,6 +3,8 @@
 ## Live Demo
 Backend Deployment (Render):  
 https://insighthub-backend-k7hv.onrender.com
+Frontend Deployment (Github Pages):
+https://davidleeroy.github.io/InsightHub_frontend/
 
 ## GitHub Repositories
 Backend:  
